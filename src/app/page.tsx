@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Stethoscope, Calendar, BedDouble, Pill,
   FlaskConical, Receipt, Bell, Search, Menu, X, Activity, DollarSign,
   UserPlus, Clock, AlertTriangle, ChevronRight, Plus, Phone, Mail,
-  Building2, Heart, TrendingUp, CheckCircle2, LogOut
+  Building2, Heart, TrendingUp, CheckCircle2, LogOut, Shield
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════════════════════════
@@ -64,7 +64,7 @@ interface Medicine {
 //  Main App
 // ═══════════════════════════════════════════════════════════════
 
-type Tab = 'dashboard' | 'patients' | 'doctors' | 'appointments' | 'beds' | 'pharmacy' | 'lab' | 'billing'
+type Tab = 'dashboard' | 'patients' | 'doctors' | 'appointments' | 'beds' | 'pharmacy' | 'lab' | 'billing' | 'employees' | 'shifts' | 'permissions' | 'analytics'
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>('dashboard')
@@ -102,6 +102,10 @@ export default function Home() {
           {tab === 'pharmacy' && <Pharmacy />}
           {tab === 'lab' && <Laboratory />}
           {tab === 'billing' && <Billing />}
+          {tab === 'employees' && <Employees />}
+          {tab === 'shifts' && <Shifts />}
+          {tab === 'permissions' && <Permissions />}
+          {tab === 'analytics' && <Analytics />}
         </main>
       </div>
     </div>
@@ -121,6 +125,10 @@ const NAV_ITEMS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'pharmacy', label: 'Pharmacy', icon: Pill },
   { id: 'lab', label: 'Laboratory', icon: FlaskConical },
   { id: 'billing', label: 'Billing', icon: Receipt },
+  { id: 'employees', label: 'Employees', icon: Users },
+  { id: 'shifts', label: 'Shift Management', icon: Clock },
+  { id: 'permissions', label: 'Permissions', icon: Shield },
+  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
 ]
 
 function Sidebar({ tab, setTab, sidebarOpen, setSidebarOpen, onLogout }: {
@@ -791,6 +799,346 @@ function Billing() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Employees
+// ═══════════════════════════════════════════════════════════════
+
+function Employees() {
+  const [emps, setEmps] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`/api/employees${search ? `?search=${encodeURIComponent(search)}` : ''}`)
+      .then(r => r.json())
+      .then(d => setEmps(d.employees || []))
+      .finally(() => setLoading(false))
+  }, [search])
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold">Employee Management</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">{emps.length} employees</p>
+      </div>
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, code, or email..." className="w-full px-4 py-2.5 text-sm bg-[var(--card)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-blue-500 transition-colors" />
+      {loading ? <LoadingSpinner /> : (
+        <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-[var(--muted)] text-left">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Emp Code</th>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium hidden sm:table-cell">Email</th>
+                  <th className="px-4 py-3 font-medium hidden md:table-cell">Department</th>
+                  <th className="px-4 py-3 font-medium hidden md:table-cell">Role</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emps.map(e => (
+                  <tr key={e.id} className="border-t border-[var(--border)] hover:bg-[var(--muted)] transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs">{e.employee_code}</td>
+                    <td className="px-4 py-3 font-medium">{e.full_name}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-[var(--muted-foreground)]">{e.email}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">{e.departments?.name || '—'}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">{e.roles?.name || e.role}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-xs ${e.is_activated ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                        {e.is_activated ? 'Active' : 'Deactivated'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Shifts
+// ═══════════════════════════════════════════════════════════════
+
+function Shifts() {
+  const [shifts, setShifts] = useState<any[]>([])
+  const [templates, setTemplates] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selDate, setSelDate] = useState(new Date().toISOString().split('T')[0])
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`/api/shifts?date=${selDate}`)
+      .then(r => r.json())
+      .then(d => { setShifts(d.shifts || []); setTemplates(d.templates || []) })
+      .finally(() => setLoading(false))
+  }, [selDate])
+
+  if (loading) return <LoadingSpinner />
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Shift Management</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">{shifts.length} shifts scheduled</p>
+        </div>
+        <input type="date" value={selDate} onChange={e => setSelDate(e.target.value)} className="px-3 py-2 text-sm bg-[var(--card)] rounded-lg border border-[var(--border)]" />
+      </div>
+
+      {/* Shift summary by template */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {templates.map(t => {
+          const count = shifts.filter(s => s.shift_templates?.name === t.name).length
+          return (
+            <div key={t.id} className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-3 h-3 rounded-full" style={{ background: t.color }} />
+                <span className="text-sm font-medium">{t.name}</span>
+              </div>
+              <p className="text-xs text-[var(--muted-foreground)]">{t.start_time} - {t.end_time}</p>
+              <p className="text-2xl font-bold mt-1">{count}</p>
+              <p className="text-xs text-[var(--muted-foreground)]">employees</p>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Shift table */}
+      <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--muted)] text-left">
+              <tr>
+                <th className="px-4 py-3 font-medium">Employee</th>
+                <th className="px-4 py-3 font-medium">Shift</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">Time</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">Department</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shifts.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--muted-foreground)]">No shifts scheduled</td></tr>
+              ) : shifts.map(s => (
+                <tr key={s.id} className="border-t border-[var(--border)] hover:bg-[var(--muted)] transition-colors">
+                  <td className="px-4 py-3 font-medium">{s.users?.full_name || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ background: s.shift_templates?.color }} />
+                      {s.shift_templates?.name || '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">{s.shift_templates?.start_time} - {s.shift_templates?.end_time}</td>
+                  <td className="px-4 py-3 hidden sm:table-cell">{s.departments?.name || s.users?.departments?.name || '—'}</td>
+                  <td className="px-4 py-3"><span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{s.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Permissions
+// ═══════════════════════════════════════════════════════════════
+
+function Permissions() {
+  const [data, setData] = useState<{ modules: any[]; actions: any[]; roles: any[] } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/roles')
+      .then(r => r.json())
+      .then(d => setData({ modules: d.modules || [], actions: d.actions || [], roles: d.roles || [] }))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <LoadingSpinner />
+  if (!data) return null
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold">Permission Management</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">Configure role-based access control across {data.modules.length} modules</p>
+      </div>
+
+      {/* Roles overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {data.roles.map(r => (
+          <div key={r.id} className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-4 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="w-4 h-4 text-blue-500" />
+              <span className="text-sm font-semibold">{r.name}</span>
+            </div>
+            <p className="text-xs text-[var(--muted-foreground)] mb-2">{r.description || '—'}</p>
+            <p className="text-xs"><span className="font-bold">{r.role_permissions?.length || 0}</span> permissions assigned</p>
+            {r.is_system && <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">SYSTEM</span>}
+          </div>
+        ))}
+      </div>
+
+      {/* Module × Action matrix */}
+      <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] overflow-hidden">
+        <h3 className="text-sm font-semibold p-4 border-b border-[var(--border)]">Module Permission Matrix</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--muted)] text-left">
+              <tr>
+                <th className="px-4 py-3 font-medium">Module</th>
+                {data.actions.map(a => (
+                  <th key={a.id} className="px-3 py-3 text-center font-medium text-xs">{a.name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.modules.map(m => (
+                <tr key={m.id} className="border-t border-[var(--border)] hover:bg-[var(--muted)] transition-colors">
+                  <td className="px-4 py-3 font-medium">{m.name}</td>
+                  {data.actions.map(a => {
+                    const granted = data.roles.find(r => r.name === 'Super Admin')?.role_permissions?.some((rp: any) => rp.module_id === m.id && rp.action_id === a.id && rp.is_granted)
+                    return (
+                      <td key={a.id} className="px-3 py-3 text-center">
+                        <span className={`inline-block w-5 h-5 rounded ${granted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`} />
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Analytics
+// ═══════════════════════════════════════════════════════════════
+
+function Analytics() {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/analytics')
+      .then(r => r.json())
+      .then(d => { if (!d.error) setStats(d) })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <LoadingSpinner />
+  if (!stats) return null
+
+  const cards = [
+    { label: 'Total Employees', value: stats.totalEmployees, icon: Users, color: 'bg-blue-500' },
+    { label: 'Active', value: stats.activeEmployees, icon: CheckCircle2, color: 'bg-green-500' },
+    { label: 'Present Today', value: stats.presentToday, icon: Activity, color: 'bg-teal-500' },
+    { label: 'Absent', value: stats.absentToday, icon: X, color: 'bg-red-500' },
+    { label: 'On Leave', value: stats.onLeave, icon: Clock, color: 'bg-amber-500' },
+    { label: 'Late Arrivals', value: stats.lateArrivals, icon: AlertTriangle, color: 'bg-orange-500' },
+    { label: 'Total Doctors', value: stats.totalDoctors, icon: Stethoscope, color: 'bg-indigo-500' },
+    { label: 'Total Nurses', value: stats.totalNurses, icon: Heart, color: 'bg-pink-500' },
+    { label: 'Shifts Today', value: stats.totalShiftsToday, icon: Clock, color: 'bg-purple-500' },
+    { label: 'Bed Occupancy', value: `${stats.bedOccupancyRate}%`, icon: BedDouble, color: 'bg-cyan-500' },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Management Analytics</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">Hospital-wide performance & staffing insights</p>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {cards.map((card, i) => {
+          const Icon = card.icon
+          return (
+            <div key={i} className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-4 hover:shadow-lg transition-shadow">
+              <div className={`w-10 h-10 rounded-lg ${card.color} flex items-center justify-center mb-3`}>
+                <Icon className="w-5 h-5 text-white" />
+              </div>
+              <p className="text-2xl font-bold">{card.value}</p>
+              <p className="text-xs text-[var(--muted-foreground)] mt-1">{card.label}</p>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Department breakdown */}
+      <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6">
+        <h3 className="text-sm font-semibold mb-4">Department-wise Employee Distribution</h3>
+        <div className="space-y-2">
+          {Object.entries(stats.departmentBreakdown || {}).map(([dept, count]) => {
+            const max = Math.max(...Object.values(stats.departmentBreakdown || {}) as number[])
+            return (
+              <div key={dept} className="flex items-center gap-3">
+                <span className="text-xs w-32 truncate">{dept}</span>
+                <div className="flex-1 h-6 bg-[var(--muted)] rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-end pr-2" style={{ width: `${max > 0 ? ((count as number) / max) * 100 : 0}%` }}>
+                    <span className="text-xs font-bold text-white">{count as number}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Shift breakdown */}
+      <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6">
+        <h3 className="text-sm font-semibold mb-4">Today's Shift Coverage</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {Object.entries(stats.shiftBreakdown || {}).map(([shift, count]) => (
+            <div key={shift} className="text-center p-4 rounded-lg bg-[var(--muted)]">
+              <p className="text-2xl font-bold text-blue-500">{count as number}</p>
+              <p className="text-xs text-[var(--muted-foreground)] mt-1">{shift}</p>
+            </div>
+          ))}
+          {Object.keys(stats.shiftBreakdown || {}).length === 0 && (
+            <p className="text-sm text-[var(--muted-foreground)] col-span-4 text-center py-4">No shifts scheduled today</p>
+          )}
+        </div>
+      </div>
+
+      {/* Revenue + Bed stats */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6">
+          <div className="flex items-center gap-2 mb-2"><DollarSign className="w-5 h-5 text-green-500" /><h3 className="text-sm font-semibold">Total Revenue</h3></div>
+          <p className="text-3xl font-bold text-green-500">₹{stats.totalRevenue}</p>
+          <p className="text-xs text-[var(--muted-foreground)] mt-1">From all paid invoices</p>
+        </div>
+        <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6">
+          <div className="flex items-center gap-2 mb-2"><BedDouble className="w-5 h-5 text-blue-500" /><h3 className="text-sm font-semibold">Bed Occupancy</h3></div>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-[var(--muted-foreground)]">Occupied: {stats.occupiedBeds}</span>
+                <span className="text-[var(--muted-foreground)]">Available: {stats.availableBeds}</span>
+              </div>
+              <div className="h-3 bg-[var(--muted)] rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full" style={{ width: `${stats.bedOccupancyRate}%` }} />
+              </div>
+            </div>
+            <p className="text-2xl font-bold">{stats.bedOccupancyRate}%</p>
+          </div>
         </div>
       </div>
     </div>
