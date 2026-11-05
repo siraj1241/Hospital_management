@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Users, Stethoscope, Calendar, BedDouble, Pill,
   FlaskConical, Receipt, Bell, Search, Menu, X, Activity, DollarSign,
   UserPlus, Clock, AlertTriangle, ChevronRight, Plus, Phone, Mail,
-  Building2, Heart, TrendingUp, CheckCircle2
+  Building2, Heart, TrendingUp, CheckCircle2, LogOut
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════════════════════════
@@ -68,15 +69,30 @@ type Tab = 'dashboard' | 'patients' | 'doctors' | 'appointments' | 'beds' | 'pha
 export default function Home() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [authed, setAuthed] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    const user = localStorage.getItem('hms_user')
+    if (!user) {
+      router.push('/login')
+    } else {
+      setAuthed(true)
+    }
+  }, [router])
+
+  const handleLogout = () => {
+    localStorage.removeItem('hms_user')
+    router.push('/login')
+  }
+
+  if (!authed) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
 
   return (
     <div className="flex h-screen bg-[var(--background)]">
-      {/* Sidebar */}
-      <Sidebar tab={tab} setTab={setTab} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-
-      {/* Main content */}
+      <Sidebar tab={tab} setTab={setTab} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} onLogout={handleLogout} />
       <div className="flex-1 overflow-y-auto">
-        <Header setSidebarOpen={setSidebarOpen} />
+        <Header setSidebarOpen={setSidebarOpen} onLogout={handleLogout} />
         <main className="p-4 sm:p-6">
           {tab === 'dashboard' && <Dashboard />}
           {tab === 'patients' && <Patients />}
@@ -107,16 +123,16 @@ const NAV_ITEMS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'billing', label: 'Billing', icon: Receipt },
 ]
 
-function Sidebar({ tab, setTab, sidebarOpen, setSidebarOpen }: {
-  tab: Tab; setTab: (t: Tab) => void; sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void
+function Sidebar({ tab, setTab, sidebarOpen, setSidebarOpen, onLogout }: {
+  tab: Tab; setTab: (t: Tab) => void; sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void; onLogout: () => void
 }) {
   return (
     <>
       {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`fixed md:static z-40 w-64 h-full bg-[var(--card)] border-r border-[var(--border)] transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed md:static z-40 w-64 h-full bg-[var(--card)] border-r border-[var(--border)] transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="h-16 flex items-center gap-3 px-6 border-b border-[var(--border)]">
-          <div className="w-9 h-9 rounded-lg bg-[var(--primary)] flex items-center justify-center">
-            <Heart className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-green-500 flex items-center justify-center">
+            <Heart className="w-5 h-5 text-white" fill="white" />
           </div>
           <div>
             <p className="font-bold text-sm">MediCore</p>
@@ -131,8 +147,8 @@ function Sidebar({ tab, setTab, sidebarOpen, setSidebarOpen }: {
               <button
                 key={item.id}
                 onClick={() => { setTab(item.id); setSidebarOpen(false) }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  active ? 'bg-[var(--primary)] text-white' : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]'
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  active ? 'bg-gradient-to-r from-blue-600 to-green-500 text-white shadow-md shadow-blue-500/20' : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -141,6 +157,11 @@ function Sidebar({ tab, setTab, sidebarOpen, setSidebarOpen }: {
             )
           })}
         </nav>
+        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-[var(--border)]">
+          <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+            <LogOut className="w-4 h-4" /> Logout
+          </button>
+        </div>
       </aside>
     </>
   )
@@ -150,7 +171,7 @@ function Sidebar({ tab, setTab, sidebarOpen, setSidebarOpen }: {
 //  Header
 // ═══════════════════════════════════════════════════════════════
 
-function Header({ setSidebarOpen }: { setSidebarOpen: (v: boolean) => void }) {
+function Header({ setSidebarOpen, onLogout }: { setSidebarOpen: (v: boolean) => void; onLogout: () => void }) {
   return (
     <header className="h-16 bg-[var(--card)] border-b border-[var(--border)] flex items-center justify-between px-4 sm:px-6 sticky top-0 z-20">
       <div className="flex items-center gap-3">
@@ -159,21 +180,21 @@ function Header({ setSidebarOpen }: { setSidebarOpen: (v: boolean) => void }) {
         </button>
         <div className="relative hidden sm:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted-foreground)]" />
-          <input
-            placeholder="Search patients, doctors..."
-            className="pl-9 pr-4 py-2 text-sm bg-[var(--muted)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-[var(--primary)] w-64"
-          />
+          <input placeholder="Search patients, doctors..." className="pl-9 pr-4 py-2 text-sm bg-[var(--muted)] rounded-lg border border-[var(--border)] focus:outline-none focus:border-blue-500 transition-colors w-64" />
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <button className="relative p-2 rounded-lg hover:bg-[var(--muted)]">
+        <button className="relative p-2 rounded-lg hover:bg-[var(--muted)] transition-colors">
           <Bell className="w-5 h-5 text-[var(--muted-foreground)]" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs font-bold">A</div>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-green-500 flex items-center justify-center text-white text-xs font-bold">A</div>
           <span className="text-sm font-medium hidden sm:block">Admin</span>
         </div>
+        <button onClick={onLogout} className="p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors" title="Logout">
+          <LogOut className="w-5 h-5" />
+        </button>
       </div>
     </header>
   )
